@@ -7,6 +7,7 @@ use Drupal\Core\Access\AccessResult;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\media\MediaInterface;
 use Drupal\media_mpx\Plugin\media\Source\Media;
+use GuzzleHttp\Exception\RequestException;
 use Lullabot\Mpx\DataService\DateTime\AvailabilityCalculator;
 use Lullabot\Mpx\DataService\DateTime\ConcreteDateTime;
 use Lullabot\Mpx\DataService\Media\Media as MpxMedia;
@@ -80,6 +81,10 @@ class MediaAvailableAccess {
       // Set a cache max age of 15 minutes, allowing for a retry to happen when
       // the mpx server is available for a more definitive access check.
       $access->setCacheMaxAge(15 * 60);
+    }
+    catch (RequestException $e) {
+      // The request sent to the mpx server is probably malformed or incomplete.
+      $access = AccessResult::forbidden('Curl error');
     }
 
     return $access;
