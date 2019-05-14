@@ -57,29 +57,7 @@ class FeedConfig extends MediaSourceBase implements MediaSourceInterface {
     if (!$media->get($source_field->getName())->isEmpty()) {
       switch ($attribute_name) {
         case 'thumbnail_uri':
-          // Unlike the rest of the mpx API, these IDs are numeric and don't
-          // include the host name.
-          $factory = $this->dataObjectFactoryCreator->forObjectType($this->getAccount()->getUserEntity(), 'Media Data Service', 'Media', '1.10');
-
-          /** @var \Lullabot\Mpx\DataService\Feeds\FeedConfig $feed */
-          $feed = $this->getMpxObject($media);
-          $pinned_ids = $feed->getPinnedIds();
-          foreach ($pinned_ids as $video_id) {
-
-            try {
-              $video = $factory->loadByNumericId($video_id)->wait();
-              return $this->downloadThumbnail($video);
-            }
-            catch (ClientException $e) {
-              // Mpx doesn't removed pinned videos from feeds if the video is
-              // deleted. In that case, we go on to the next video to find a
-              // thumbnail.
-              if ($e->getCode() != 404) {
-                throw $e;
-              }
-            }
-          }
-
+          $this->getThumbnailUri($media);
           break;
 
         case 'thumbnail_alt':
@@ -95,6 +73,57 @@ class FeedConfig extends MediaSourceBase implements MediaSourceInterface {
     };
 
     return parent::getMetadata($media, $attribute_name);
+  }
+
+  /**
+   * Return the thumbnail for a feed.
+   *
+   * @param \Drupal\media\MediaInterface $media
+   *   The feed config media entity.
+   *
+   * @return string|null
+   *   The thumbnail URL, or NULL if one cannot be found.
+   */
+  private function getThumbnailUri(MediaInterface $media): ?string {
+    /** @var \Lullabot\Mpx\DataService\Feeds\FeedConfig $feed */
+    $feed = $this->getMpxObject($media);
+    $pinned_ids = $feed->getPinnedIds();
+    // Unlike the rest of the mpx API, these IDs are numeric and don't
+    // include the host name.
+    foreach ($pinned_ids as $video_id) {
+      if ($thumbnail = $this->fetchFromPinnedId($video_id)) {
+        return $thumbnail;
+      }
+    }
+
+    return NULL;
+  }
+
+  /**
+   * Fetch a thumbnail for a pinned video.
+   *
+   * @param int $video_id
+   *   The video ID to load.
+   *
+   * @return string|null
+   *   The thumbnail URL, or NULL if one cannot be found.
+   */
+  private function fetchFromPinnedId(int $video_id) {
+    $factory = $this->dataObjectFactoryCreator->forObjectType($this->getAccount()->getUserEntity(), 'Media Data Service', 'Media', '1.10');
+    try {
+      $video = $factory->loadByNumericId($video_id)->wait();
+      return $this->downloadThumbnail($video);
+    }
+    catch (ClientException $e) {
+      // Mpx doesn't removed pinned videos from feeds if the video is
+      // deleted. In that case, we go on to the next video to find a
+      // thumbnail.
+      if ($e->getCode() != 404) {
+        throw $e;
+      }
+    }
+
+    return NULL;
   }
 
 }

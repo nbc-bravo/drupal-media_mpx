@@ -11,6 +11,7 @@ use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\media_mpx\DataObjectFactoryCreator;
 use Drupal\media_mpx\MpxLogger;
+use Drupal\media_mpx\PlayerMetadata;
 use Drupal\media_mpx\Plugin\media\Source\Media;
 use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Psr7\Uri;
@@ -125,24 +126,24 @@ class PlayerFormatter extends FormatterBase implements ContainerFactoryPluginInt
     $element = [];
 
     /** @var \Drupal\media\Entity\Media $entity */
-    $entity = $items->getEntity();
-    if ($entity) {
-      /** @var \Drupal\media_mpx\Plugin\media\Source\Media $source_plugin */
-      $source_plugin = $entity->getSource();
-
-      // @todo Cache this.
-      $factory = $this->dataObjectFactoryCreator->forObjectType($source_plugin->getAccount()->getUserEntity(), 'Player Data Service', 'Player', '1.6');
-
-      try {
-        $player = $factory->load(new Uri($this->getSetting('player')))->wait();
-      }
-      catch (TransferException $e) {
-        // If we can't load a player, we can't render any elements.
-        $this->mpxLogger->logException($e);
-        return $element;
-      }
-      $this->renderIframes($items, $player, $element);
+    if (!$entity = $items->getEntity()) {
+      return [];
     }
+    /** @var \Drupal\media_mpx\Plugin\media\Source\Media $source_plugin */
+    $source_plugin = $entity->getSource();
+
+    // @todo Cache this.
+    $factory = $this->dataObjectFactoryCreator->forObjectType($source_plugin->getAccount()->getUserEntity(), 'Player Data Service', 'Player', '1.6');
+
+    try {
+      $player = $factory->load(new Uri($this->getSetting('player')))->wait();
+    }
+    catch (TransferException $e) {
+      // If we can't load a player, we can't render any elements.
+      $this->mpxLogger->logException($e);
+      return $element;
+    }
+    $this->renderIframes($items, $player, $element);
 
     return $element;
   }
@@ -228,29 +229,28 @@ class PlayerFormatter extends FormatterBase implements ContainerFactoryPluginInt
    */
   protected function fetchPlayerOptions(): array {
     $options = [];
-    $bundle = $this->fieldDefinition->getTargetBundle();
-    if ($bundle) {
-      /** @var \Drupal\media\Entity\MediaType $type */
-      $type = $this->entityTypeManager->getStorage('media_type')->load($bundle);
-      /** @var \Drupal\media_mpx\Plugin\media\Source\Media $source_plugin */
-      $source_plugin = $type->getSource();
+    if (!$bundle = $this->fieldDefinition->getTargetBundle()) {
+      return [];
+    }
+    /** @var \Drupal\media\Entity\MediaType $type */
+    $type = $this->entityTypeManager->getStorage('media_type')->load($bundle);
+    /** @var \Drupal\media_mpx\Plugin\media\Source\Media $source_plugin */
+    $source_plugin = $type->getSource();
 
-      $factory = $this->dataObjectFactoryCreator->forObjectType($source_plugin->getAccount()->getUserEntity(), 'Player Data Service', 'Player', '1.6', $source_plugin->getAccount());
-      $query = new ObjectListQuery();
-      $sort = new Sort();
-      $sort->addSort('title');
-      $query->setSort($sort);
+    $factory = $this->dataObjectFactoryCreator->forObjectType($source_plugin->getAccount()->getUserEntity(), 'Player Data Service', 'Player', '1.6', $source_plugin->getAccount());
+    $query = new ObjectListQuery();
+    $sort = new Sort();
+    $sort->addSort('title');
+    $query->setSort($sort);
 
-      /** @var \Lullabot\Mpx\DataService\Player\Player[] $results */
-      $results = $factory->select($query);
+    /** @var \Lullabot\Mpx\DataService\Player\Player[] $results */
+    $results = $factory->select($query);
 
-      foreach ($results as $player) {
-        if (!$player->getDisabled()) {
-          $options[(string) $player->getId()] = $player->getTitle();
-        }
+    foreach ($results as $player_option) {
+      if (!$player_option->getDisabled()) {
+        $options[(string) $player_option->getId()] = $player_option->getTitle();
       }
     }
-
     return $options;
   }
 
@@ -298,6 +298,7 @@ class PlayerFormatter extends FormatterBase implements ContainerFactoryPluginInt
       return NULL;
     }
 
+    $meta = new PlayerMetadata($entity, $mpx_media, $this->buildUrl($source_plugin, $mpx_media, $player));
     $element = [
       '#type' => 'media_mpx_iframe_wrapper',
       '#attributes' => [
@@ -305,7 +306,7 @@ class PlayerFormatter extends FormatterBase implements ContainerFactoryPluginInt
           'mpx-iframe-wrapper',
         ],
       ],
-      '#meta' => $this->buildMeta($entity, $mpx_media, $player),
+      '#meta' => $meta->toArray(),
       '#content' => $this->buildPlayer($source_plugin, $player, $mpx_media),
       '#entity' => $entity,
       '#mpx_media' => $mpx_media,
