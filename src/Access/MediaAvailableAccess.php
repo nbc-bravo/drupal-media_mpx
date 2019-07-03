@@ -5,7 +5,6 @@ namespace Drupal\media_mpx\Access;
 use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Access\AccessResult;
 use Drupal\Core\Session\AccountInterface;
-use Drupal\datetime\Plugin\Field\FieldType\DateTimeItemInterface;
 use Drupal\media\MediaInterface;
 use Drupal\media_mpx\Plugin\media\Source\Media;
 use GuzzleHttp\Psr7\Uri;
@@ -206,7 +205,7 @@ class MediaAvailableAccess {
    */
   private function getDateTime(MediaInterface $media, string $field_name): DateTimeFormatInterface {
     $fieldItemList = $media->get($field_name);
-    $date_time = \DateTime::createFromFormat(DateTimeItemInterface::DATETIME_STORAGE_FORMAT, $fieldItemList->value);
+    $date_time = \DateTime::createFromFormat('U', $fieldItemList->value);
     $date = !$fieldItemList->isEmpty() && $date_time ? new ConcreteDateTime($date_time) : new NullDateTime();
     return $date;
   }
