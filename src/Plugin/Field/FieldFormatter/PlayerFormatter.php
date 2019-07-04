@@ -11,6 +11,7 @@ use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\media_mpx\DataObjectFactoryCreator;
 use Drupal\media_mpx\MpxLogger;
+use Drupal\media_mpx\PlayerMetadata;
 use Drupal\media_mpx\Plugin\media\Source\Media;
 use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Psr7\Uri;
@@ -125,7 +126,9 @@ class PlayerFormatter extends FormatterBase implements ContainerFactoryPluginInt
     $element = [];
 
     /** @var \Drupal\media\Entity\Media $entity */
-    $entity = $items->getEntity();
+    if (!$entity = $items->getEntity()) {
+      return [];
+    }
     /** @var \Drupal\media_mpx\Plugin\media\Source\Media $source_plugin */
     $source_plugin = $entity->getSource();
 
@@ -226,7 +229,9 @@ class PlayerFormatter extends FormatterBase implements ContainerFactoryPluginInt
    */
   protected function fetchPlayerOptions(): array {
     $options = [];
-    $bundle = $this->fieldDefinition->getTargetBundle();
+    if (!$bundle = $this->fieldDefinition->getTargetBundle()) {
+      return [];
+    }
     /** @var \Drupal\media\Entity\MediaType $type */
     $type = $this->entityTypeManager->getStorage('media_type')->load($bundle);
     /** @var \Drupal\media_mpx\Plugin\media\Source\Media $source_plugin */
@@ -241,9 +246,9 @@ class PlayerFormatter extends FormatterBase implements ContainerFactoryPluginInt
     /** @var \Lullabot\Mpx\DataService\Player\Player[] $results */
     $results = $factory->select($query);
 
-    foreach ($results as $player) {
-      if (!$player->getDisabled()) {
-        $options[(string) $player->getId()] = $player->getTitle();
+    foreach ($results as $player_option) {
+      if (!$player_option->getDisabled()) {
+        $options[(string) $player_option->getId()] = $player_option->getTitle();
       }
     }
     return $options;
@@ -293,6 +298,7 @@ class PlayerFormatter extends FormatterBase implements ContainerFactoryPluginInt
       return NULL;
     }
 
+    $meta = new PlayerMetadata($entity, $mpx_media, $this->buildUrl($source_plugin, $mpx_media, $player));
     $element = [
       '#type' => 'media_mpx_iframe_wrapper',
       '#attributes' => [
@@ -300,7 +306,7 @@ class PlayerFormatter extends FormatterBase implements ContainerFactoryPluginInt
           'mpx-iframe-wrapper',
         ],
       ],
-      '#meta' => $this->buildMeta($entity, $mpx_media, $player),
+      '#meta' => $meta->toArray(),
       '#content' => $this->buildPlayer($source_plugin, $player, $mpx_media),
       '#entity' => $entity,
       '#mpx_media' => $mpx_media,
@@ -385,32 +391,6 @@ class PlayerFormatter extends FormatterBase implements ContainerFactoryPluginInt
     return (new Url($source_plugin->getAccount(), $player, $mpx_media))
       ->withAutoplay($this->getSetting('auto_play'))
       ->withPlayAll($this->getSetting('play_all'));
-  }
-
-  /**
-   * Build the metadata keys for schema.org tags.
-   *
-   * @param \Drupal\media\Entity\Media $entity
-   *   The media entity being rendered.
-   * @param \Lullabot\Mpx\DataService\Media\Media $mpx_media
-   *   The mpx media object.
-   * @param \Lullabot\Mpx\DataService\Player\Player $player
-   *   The player being rendered.
-   *
-   * @return array
-   *   An array of schema.org data.
-   */
-  protected function buildMeta(DrupalMedia $entity, MpxMedia $mpx_media, Player $player): array {
-    /** @var \Drupal\media_mpx\Plugin\media\Source\Media $source_plugin */
-    $source_plugin = $entity->getSource();
-    return [
-      'name' => $entity->label(),
-      'thumbnailUrl' => file_create_url($source_plugin->getMetadata($entity, 'thumbnail_uri')),
-      'description' => $mpx_media->getDescription(),
-      'uploadDate' => $mpx_media->getAvailableDate()->format(DATE_ISO8601),
-      'embedUrl' => (string) $this->buildUrl($source_plugin, $mpx_media, $player)
-        ->withEmbed(TRUE),
-    ];
   }
 
 }

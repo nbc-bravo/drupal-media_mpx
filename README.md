@@ -11,6 +11,7 @@
 - [Thumbnail integration](#thumbnail-integration)
   - [Handling thumbnail errors](#handling-thumbnail-errors)
 - [Caching of mpx responses](#caching-of-mpx-responses)
+- [Media access and availability calculations](#media-access-and-availability-calculations)
 - [Limiting results during an mpx import](#limiting-results-during-an-mpx-import)
   - [1. Altering import mpx queries](#1-altering-import-mpx-queries)
   - [2. Altering ingested mpx objects](#2-altering-ingested-mpx-objects)
@@ -101,7 +102,7 @@ Unfortunately, mpx returns `Cache-control: no-cache` headers in every request.
 For most Drupal sites, cached video data is fine to use and expected given that
 the data is copied into media entities. By default, all requests loading a
 single data object (like an mpx media item) are cached. When using any of the
-provided services to load mpx data (such as `media_mpx.authenticated_client` or
+provided services to load mpx data (such as `media_mpx.authenticated_client_factory` or
 `media_mpx.data_object_factory_creator`), assume data will be cached. To force
 a fresh request, pass in an appropriate `Cache-Control` header, such as:
 
@@ -111,6 +112,16 @@ $factory->load('http://data.media.theplatform.com/media/data/Media/2602559', ['h
 
 Note that this will incur a significant performance hit on the order of 500ms
 or more, so use this option sparingly and rely on cached data where possible.
+
+## Media access and availability calculations
+
+Access to an mpx media entity is calculated using the mpx available and
+expiration dates. By default, after a site cache clear those videos will
+need to be re-fetched from mpx to have up-to-date availability dates. To
+improve performance, map the available and expiration dates to Date / Time
+fields. If available, those fields will be used to calculate access
+permissions. For details, see the
+[MediaAvailableAccess](src/Access/MediaAvailableAccess.php) class.
 
 ## Limiting results during an mpx import
 
