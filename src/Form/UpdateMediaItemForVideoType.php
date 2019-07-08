@@ -103,7 +103,7 @@ class UpdateMediaItemForVideoType extends FormBase {
     ];
     $form['guid'] = [
       '#type' => 'textfield',
-      '#title' => $this->t('Guid'),
+      '#title' => $this->t('GUID'),
       '#placeholder' => 'Type the GUID of the mpx video you want to import.',
       '#required' => TRUE,
     ];
@@ -132,8 +132,8 @@ class UpdateMediaItemForVideoType extends FormBase {
       $this->submitFormProcessRequest($request, $guid, $success_text, $error_text);
       return;
     }
-    $guid_not_found_exception = new \Exception("Given guid doesn't exist, please check and try again.");
-    $error_text = (string) $this->t("Given guid doesn't exist, please check and try again.");
+    $guid_not_found_exception = new \RuntimeException(sprintf("Given guid (%s) doesn't exist, please check and try again.", $guid));
+    $error_text = (string) $this->t("Given guid (@guid) doesn't exist, please check and try again.", ['@guid' => $guid]);
     $this->submitFormReportError($guid, $guid_not_found_exception, $error_text);
   }
 
@@ -172,7 +172,7 @@ class UpdateMediaItemForVideoType extends FormBase {
     $response = $this->updateVideoItemService->execute($request);
     if (empty($response->getUpdatedEntities())) {
       $mpx_media = $response->getMpxItem();
-      $this->messenger()->addWarning($this->t("The selected video: @video_title (@guid) did not import. The video was filtered out by one or more custom import filters. Adjust the video metadata in mpx to ensure it's available to be imported and try again.", [
+      $this->messenger()->addWarning($this->t("The selected video: @video_title (@guid) did not import. There may be one or more custom business rules in place which filtered it out. Consult the site administrator, adjust the video metadata in mpx to ensure it's available to be imported, and try again.", [
         '@video_title' => $mpx_media->getTitle(),
         '@guid' => $mpx_media->getGuid(),
       ]));
