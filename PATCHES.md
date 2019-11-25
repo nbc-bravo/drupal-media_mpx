@@ -6,3 +6,5 @@ Import single messaging for filtered videos
 * https://github.com/Lullabot/media_mpx/pull/143.diff
 LogicException: The database connection is not serializable error on mpx media forms with AJAX operations
 * https://github.com/Lullabot/media_mpx/pull/145.diff
+Force a fresh request to mpx when performing an update via the UI
+* https://patch-diff.githubusercontent.com/raw/Lullabot/media_mpx/pull/157.diff
