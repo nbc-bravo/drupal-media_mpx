@@ -10,3 +10,5 @@ Force a fresh request to mpx when performing an update via the UI
 * https://patch-diff.githubusercontent.com/raw/Lullabot/media_mpx/pull/157.diff
 Add a field formatter for a console link
 * https://patch-diff.githubusercontent.com/raw/Lullabot/media_mpx/pull/159.diff
+Update lullabot/mpx-php dependency
+* https://patch-diff.githubusercontent.com/raw/Lullabot/media_mpx/pull/162.diff
